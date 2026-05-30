@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+from uuid import uuid4
 
 
 class SubmissionManager:
@@ -46,7 +47,7 @@ class SubmissionManager:
 
     async def _record_submission(self, platform: str, report: Dict[str, Any]) -> Dict[str, Any]:
         submission = {
-            "submission_id": f"{platform}-{len(self.submissions) + 1}",
+            "submission_id": f"{platform}-{uuid4().hex}",
             "platform": platform,
             "status": "submitted",
             "payment_status": "pending",

@@ -9,6 +9,11 @@ from typing import Any, Dict, List
 class ProfessionalReportGenerator:
     """Create structured reports that are ready for platform submission."""
 
+    BASE_PAYOUT = 250.0
+    # CVSS ranges from 0-10; dividing by 5 keeps payout multipliers bounded.
+    CVSS_NORMALIZER = 5.0
+    MIN_CVSS_MULTIPLIER = 1.0
+
     async def generate_winning_report(self, finding: Dict[str, Any]) -> Dict[str, Any]:
         payout = await self.calculate_payout_estimate(finding)
         return {
@@ -28,6 +33,10 @@ class ProfessionalReportGenerator:
         cvss_score = float(finding.get("cvss_score", 0))
         company_multiplier = float(finding.get("company_multiplier", 1.0))
 
-        base = 250.0
-        payout = base * severity_weights.get(severity, 2.0) * max(cvss_score / 4, 1) * company_multiplier
+        payout = (
+            self.BASE_PAYOUT
+            * severity_weights.get(severity, 2.0)
+            * max(cvss_score / self.CVSS_NORMALIZER, self.MIN_CVSS_MULTIPLIER)
+            * company_multiplier
+        )
         return {"estimated_payout": round(payout, 2)}

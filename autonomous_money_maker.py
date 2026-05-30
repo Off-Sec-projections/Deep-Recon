@@ -15,6 +15,9 @@ from submission_manager import SubmissionManager
 class AutonomousMoneyMaker:
     """Coordinate target selection, finding triage, reporting, and tracking."""
 
+    DEFAULT_SLEEP_SECONDS = 86400
+    MAX_PROGRAMS_PER_CYCLE = 5
+
     def __init__(
         self,
         intelligence: BugBountyIntelligence,
@@ -29,14 +32,16 @@ class AutonomousMoneyMaker:
         self.submitter = submitter
         self.earnings = earnings
 
-    async def hunt_and_earn(self, run_once: bool = True, sleep_seconds: int = 86400) -> List[Dict[str, Any]]:
+    async def hunt_and_earn(
+        self, run_once: bool = True, sleep_seconds: int = DEFAULT_SLEEP_SECONDS
+    ) -> List[Dict[str, Any]]:
         """Run one or more authorized bug bounty workflow cycles."""
         cycle_submissions: List[Dict[str, Any]] = []
 
         while True:
             best_programs = await self.intelligence.find_profitable_programs()
 
-            for program in best_programs[:5]:
+            for program in best_programs[: self.MAX_PROGRAMS_PER_CYCLE]:
                 findings = await self.finder.find_vulnerabilities(program)
                 for finding in findings:
                     report = await self.reporter.generate_winning_report(finding)

@@ -8,6 +8,20 @@ from typing import Any, Dict, List
 class BugBountyIntelligence:
     """Analyze authorized bug bounty program data and rank opportunities."""
 
+    IDEAL_RESPONSE_DAYS = 7.0
+    DEFAULT_RESPONSE_DAYS = 14.0
+    MIN_RESPONSE_DAYS = 1.0
+    MIN_ACTIVE_HUNTERS = 1.0
+    STACK_PREDICTIONS = {
+        "node": "access-control-logic",
+        "javascript": "access-control-logic",
+        "typescript": "access-control-logic",
+        "go": "authorization-flows",
+        "java": "authorization-flows",
+        "dotnet": "authorization-flows",
+        "python": "authorization-flows",
+    }
+
     def __init__(self, programs: List[Dict[str, Any]] | None = None):
         self.programs = programs or []
 
@@ -17,11 +31,18 @@ class BugBountyIntelligence:
 
         for program in self.programs:
             average_payout = float(program.get("average_payout", 0))
-            active_hunters = max(float(program.get("active_hunters", 0)), 1.0)
-            response_days = max(float(program.get("response_days", 14)), 1.0)
+            active_hunters = max(
+                float(program.get("active_hunters", 0)), self.MIN_ACTIVE_HUNTERS
+            )
+            response_days = max(
+                float(program.get("response_days", self.DEFAULT_RESPONSE_DAYS)),
+                self.MIN_RESPONSE_DAYS,
+            )
             maturity = float(program.get("maturity_score", 1))
 
-            score = ((average_payout * maturity) / active_hunters) * (7 / response_days)
+            score = ((average_payout * maturity) / active_hunters) * (
+                self.IDEAL_RESPONSE_DAYS / response_days
+            )
             scored.append({**program, "profitability_score": round(score, 2)})
 
         return sorted(scored, key=lambda p: p["profitability_score"], reverse=True)
@@ -29,13 +50,12 @@ class BugBountyIntelligence:
     async def predict_vulnerability_types(self, program: Dict[str, Any]) -> List[str]:
         """Return likely vulnerability classes from known stack and history."""
         stack = {value.lower() for value in program.get("tech_stack", [])}
-        history = " ".join(program.get("historical_findings", [])).lower()
+        history = " ".join(str(item) for item in program.get("historical_findings", [])).lower()
         predictions: List[str] = []
 
-        if {"node", "javascript", "typescript"} & stack:
-            predictions.append("access-control-logic")
-        if {"go", "java", "dotnet", "python"} & stack:
-            predictions.append("authorization-flows")
+        for tech, finding_type in self.STACK_PREDICTIONS.items():
+            if tech in stack and finding_type not in predictions:
+                predictions.append(finding_type)
         if "api" in history or "rest" in stack:
             predictions.append("idor-and-api-authorization")
         if "payment" in history or "ecommerce" in stack:

@@ -9,6 +9,8 @@ from submission_manager import SubmissionManager
 
 
 class AutonomousMoneyMakerTests(unittest.IsolatedAsyncioTestCase):
+    EXPECTED_SUBMISSIONS = 3
+
     async def test_hunt_and_earn_submits_findings(self):
         programs = [
             {
@@ -33,9 +35,9 @@ class AutonomousMoneyMakerTests(unittest.IsolatedAsyncioTestCase):
 
         submissions = await maker.hunt_and_earn(run_once=True)
 
-        self.assertEqual(len(submissions), 3)
+        self.assertEqual(len(submissions), self.EXPECTED_SUBMISSIONS)
         payment_state = await maker.submitter.track_payment_status()
-        self.assertEqual(len(payment_state), 3)
+        self.assertEqual(len(payment_state), self.EXPECTED_SUBMISSIONS)
 
 
 if __name__ == "__main__":
