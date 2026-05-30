@@ -16,6 +16,8 @@ from ai_exploitation import AIExploitation
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('autonomous')
+NEW_PROGRAM_MULTIPLIER = 1.2
+MIN_SCORE_DENOMINATOR = 1.0
 
 class AutonomousBugHunter:
     """Complete autonomous bug hunting framework"""
@@ -158,12 +160,23 @@ class AutonomousBugHunter:
         return report
 
 def _target_score(target_profile: Dict[str, Any]) -> float:
-    avg_payout = float(target_profile.get("avg_payout", 0))
-    scope_size = float(target_profile.get("scope_size", 1))
-    active_hunters = float(target_profile.get("active_hunters", 1))
-    response_time = float(target_profile.get("response_time_hours", 48))
-    new_program_bonus = 1.2 if target_profile.get("new_program", False) else 1.0
-    return ((avg_payout * new_program_bonus) * scope_size) / max(active_hunters * response_time, 1)
+    """
+    Rank targets by payout opportunity adjusted by competition and response speed.
+    Higher payout/scope increases score, while more hunters and faster response reduce it.
+    """
+    def _safe_float(value: Any, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    avg_payout = _safe_float(target_profile.get("avg_payout"), 0.0)
+    scope_size = _safe_float(target_profile.get("scope_size"), 1.0)
+    active_hunters = _safe_float(target_profile.get("active_hunters"), 1.0)
+    response_time = _safe_float(target_profile.get("response_time_hours"), 48.0)
+    new_program_bonus = NEW_PROGRAM_MULTIPLIER if target_profile.get("new_program", False) else 1.0
+    # Competition and fast-response programs are less profitable over time, so they reduce score.
+    return ((avg_payout * new_program_bonus) * scope_size) / max(active_hunters * response_time, MIN_SCORE_DENOMINATOR)
 
 
 def _estimate_bounty(vulnerabilities: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -172,16 +185,17 @@ def _estimate_bounty(vulnerabilities: List[Dict[str, Any]]) -> Dict[str, int]:
         "SQLi": (1500, 10000),
         "XSS": (300, 2500),
         "SSRF": (1000, 12000),
-        "Auth": (800, 7000)
+        "AUTH": (800, 7000),
+        "AUTHENTICATION": (800, 7000),
+        "AUTHORIZATION": (800, 7000)
     }
     low, high = 0, 0
     for vuln in vulnerabilities:
-        vtype = str(vuln.get("type", "")).upper()
-        for key, payout in table.items():
-            if key in vtype:
-                low += payout[0]
-                high += payout[1]
-                break
+        vtype = str(vuln.get("type", "")).strip().upper()
+        payout = table.get(vtype)
+        if payout:
+            low += payout[0]
+            high += payout[1]
         else:
             low += 100
             high += 500
@@ -190,8 +204,12 @@ def _estimate_bounty(vulnerabilities: List[Dict[str, Any]]) -> Dict[str, int]:
 
 def _load_targets(single_target: str, targets_file: str) -> List[Dict[str, Any]]:
     if targets_file:
-        with open(targets_file, "r") as fh:
-            payload = json.load(fh)
+        try:
+            with open(targets_file, "r") as fh:
+                payload = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.error(f"Failed to load targets file '{targets_file}': {exc}")
+            return []
         if isinstance(payload, dict):
             payload = payload.get("targets", [])
         return payload
@@ -202,10 +220,22 @@ async def run_cycles(target_profiles: List[Dict[str, Any]], api_key: str, interv
                      cycles: int, active_testing: bool) -> Dict[str, Any]:
     run_results: List[Dict[str, Any]] = []
     learning: Dict[str, Any] = {"vuln_type_success": {}}
+    dropped = len(target_profiles) - len([p for p in target_profiles if p.get("domain")])
+    if dropped:
+        logger.warning(f"Skipped {dropped} target profile(s) without domain")
+    valid_profiles = [p for p in target_profiles if p.get("domain")]
+    if not valid_profiles:
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "cycles_completed": 0,
+            "passive_mode": not active_testing,
+            "results": [],
+            "learning": learning
+        }
 
     for cycle in range(cycles):
-        ranked = sorted(target_profiles, key=_target_score, reverse=True)
-        target = ranked[0].get("domain")
+        ranked = sorted(valid_profiles, key=_target_score, reverse=True)
+        target = ranked[0]["domain"]
         logger.info(f"[CYCLE {cycle + 1}] Selected target: {target}")
         hunter = AutonomousBugHunter(target, api_key, active_testing=active_testing)
         cycle_result = await hunter.hunt()
@@ -221,7 +251,7 @@ async def run_cycles(target_profiles: List[Dict[str, Any]], api_key: str, interv
 
     return {
         "timestamp": datetime.now().isoformat(),
-        "cycles_completed": cycles,
+        "cycles_completed": len(run_results),
         "passive_mode": not active_testing,
         "results": run_results,
         "learning": learning
@@ -230,11 +260,17 @@ async def run_cycles(target_profiles: List[Dict[str, Any]], api_key: str, interv
 
 async def main():
     """Main entry point"""
+    def _positive_int(value: str) -> int:
+        parsed = int(value)
+        if parsed < 1:
+            raise argparse.ArgumentTypeError("Value must be >= 1")
+        return parsed
+
     parser = argparse.ArgumentParser(description="Autonomous security hunting orchestrator")
     parser.add_argument("--target", default="example.com", help="Single target domain")
     parser.add_argument("--targets-file", help="JSON file containing target profiles")
-    parser.add_argument("--cycles", type=int, default=1, help="Number of autonomous cycles")
-    parser.add_argument("--interval-seconds", type=int, default=60, help="Seconds between cycles")
+    parser.add_argument("--cycles", type=_positive_int, default=1, help="Number of autonomous cycles (minimum 1)")
+    parser.add_argument("--interval-seconds", type=_positive_int, default=60, help="Seconds between cycles (minimum 1)")
     parser.add_argument("--output", default="hunt_results.json", help="Output JSON file")
     parser.add_argument(
         "--active-testing",
@@ -245,7 +281,10 @@ async def main():
 
     api_key = os.getenv('NVIDIA_API_KEY')
     if not api_key:
-        logger.warning("NVIDIA_API_KEY not set. AI analysis and report quality will be limited.")
+        logger.warning(
+            "NVIDIA_API_KEY not set. Set it with 'export NVIDIA_API_KEY=your_key'. "
+            "AI analysis and report quality will be limited."
+        )
 
     target_profiles = _load_targets(args.target, args.targets_file)
     if not target_profiles:
@@ -254,9 +293,9 @@ async def main():
 
     results = await run_cycles(
         target_profiles=target_profiles,
-        api_key=api_key or "",
-        interval_seconds=max(args.interval_seconds, 1),
-        cycles=max(args.cycles, 1),
+        api_key=api_key,
+        interval_seconds=args.interval_seconds,
+        cycles=args.cycles,
         active_testing=args.active_testing
     )
 
