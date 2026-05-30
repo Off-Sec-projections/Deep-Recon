@@ -71,6 +71,12 @@ Deep-Recon is a professional, modular toolkit for web reconnaissance and vulnera
 | `cve_lookup.py`           | CVE and threat intelligence integration, smart caching            |
 | `dns_enum.py`             | DNS record enumeration with caching                               |
 | `report_generator.py`     | Automated report (HTML/JSON) generation and AI analysis           |
+| `bug_bounty_intelligence.py` | Program scoring and opportunity ranking for bug bounty work   |
+| `professional_vulnerability_finder.py` | Prioritizes high-value findings from authorized scan data |
+| `professional_report_generator.py` | Structured bug bounty report generation                |
+| `submission_manager.py`   | Submission lifecycle tracking helpers                              |
+| `earnings_tracker.py`     | Earnings and payout summary tracking                               |
+| `autonomous_money_maker.py` | Orchestrates the bug bounty workflow cycle                      |
 | `report.html`,<br>`basic_report_template.html`,<br>`enhanced_html_template.html` | Reporting templates for findings and analysis       |
 
 ---
@@ -119,6 +125,11 @@ python whois_batch.py --input domains.txt
 **Generate a Report**
 ```bash
 python report_generator.py --input findings.json --output report.html
+```
+
+**Run the Bug Bounty Workflow Example**
+```bash
+python autonomous_money_maker.py
 ```
 
 For more options, run any script with `-h` or `--help`.
