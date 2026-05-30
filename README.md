@@ -121,6 +121,12 @@ python whois_batch.py --input domains.txt
 python report_generator.py --input findings.json --output report.html
 ```
 
+**Autonomous Workflow (passive by default)**
+```bash
+python ai_autonomous.py --target targetsite.com
+python ai_autonomous.py --target targetsite.com --active-testing
+```
+
 For more options, run any script with `-h` or `--help`.
 
 ---

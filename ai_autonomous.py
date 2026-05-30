@@ -4,6 +4,7 @@ End-to-end automation: Recon -> Vulnerability Discovery -> Exploitation -> Repor
 """
 
 import asyncio
+import argparse
 import aiohttp
 import logging
 from typing import List, Dict, Any
@@ -19,13 +20,15 @@ logger = logging.getLogger('autonomous')
 class AutonomousBugHunter:
     """Complete autonomous bug hunting framework"""
     
-    def __init__(self, target: str, api_key: str):
+    def __init__(self, target: str, api_key: str, active_testing: bool = False):
         self.target = target
         self.api_key = api_key
+        self.active_testing = active_testing
         self.ai = AICore(api_key)
         self.results = {
             "target": target,
             "timestamp": datetime.now().isoformat(),
+            "mode": "active" if active_testing else "passive",
             "reconnaissance": {},
             "vulnerabilities": [],
             "exploitations": [],
@@ -49,10 +52,15 @@ class AutonomousBugHunter:
         vulnerabilities = await self._discover_vulnerabilities(recon_data)
         self.results["vulnerabilities"] = vulnerabilities
         
-        # Phase 3: Exploitation
-        logger.info("\n[PHASE 3] EXPLOITATION")
-        exploitations = await self._exploit(vulnerabilities)
-        self.results["exploitations"] = exploitations
+        # Phase 3: Exploitation (active mode only)
+        if self.active_testing:
+            logger.info("\n[PHASE 3] EXPLOITATION")
+            exploitations = await self._exploit(vulnerabilities)
+            self.results["exploitations"] = exploitations
+        else:
+            logger.info("\n[PHASE 3] EXPLOITATION")
+            logger.info("Passive mode: exploitation is disabled. Use --active-testing to enable.")
+            self.results["exploitations"] = []
         
         # Phase 4: Report Generation
         logger.info("\n[PHASE 4] REPORT GENERATION")
@@ -154,6 +162,14 @@ class AutonomousBugHunter:
 
 async def main():
     """Main entry point"""
+    parser = argparse.ArgumentParser(description="Autonomous bug bounty hunting workflow")
+    parser.add_argument("--target", default="example.com", help="Target domain")
+    parser.add_argument(
+        "--active-testing",
+        action="store_true",
+        help="Enable active exploitation attempts (disabled by default)",
+    )
+    args = parser.parse_args()
     
     # Get API key from environment
     api_key = os.getenv('NVIDIA_API_KEY')
@@ -161,11 +177,10 @@ async def main():
         logger.error("NVIDIA_API_KEY not set")
         return
     
-    # Target (can be from CLI argument)
-    target = "example.com"
+    target = args.target
     
     # Run autonomous hunt
-    hunter = AutonomousBugHunter(target, api_key)
+    hunter = AutonomousBugHunter(target, api_key, active_testing=args.active_testing)
     results = await hunter.hunt()
     
     # Save results
