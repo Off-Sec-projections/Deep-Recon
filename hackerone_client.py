@@ -203,3 +203,6 @@ async def demo_hackerone() -> None:
     for program in programs[:5]:
         print(f"- {program.get('name')} ({program.get('handle')})")
 
+
+async def demo_client() -> None:
+    await demo_hackerone()
