@@ -4,6 +4,7 @@ HackerOne API client.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 from typing import Any, Dict, List, Optional
@@ -202,3 +203,7 @@ async def demo_hackerone() -> None:
     print(f"Found {len(programs)} programs")
     for program in programs[:5]:
         print(f"- {program.get('name')} ({program.get('handle')})")
+
+
+if __name__ == "__main__":
+    asyncio.run(demo_hackerone())
