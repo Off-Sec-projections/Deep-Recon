@@ -68,6 +68,8 @@ Deep-Recon is a professional, modular toolkit for web reconnaissance and vulnera
 | `header_analyzer.py`      | HTTP header & security header auditing                            |
 | `http_fingerprint.py`     | Web server & technology fingerprinting                            |
 | `vuln_scan.py`            | Web vulnerability scanning (XSS, SQLi, LFI, SSRF, etc.)           |
+| `advanced_vulnerability_finder.py` | Advanced endpoint/parameter-driven vulnerability hunting |
+| `main_hunter.py`          | CLI orchestrator for advanced vulnerability hunting               |
 | `cve_lookup.py`           | CVE and threat intelligence integration, smart caching            |
 | `dns_enum.py`             | DNS record enumeration with caching                               |
 | `report_generator.py`     | Automated report (HTML/JSON) generation and AI analysis           |
@@ -104,6 +106,11 @@ python cms.py --target or -t targetsite.com
 **Vulnerability Scan**
 ```bash
 python vuln_scan.py --target or -t targetsite.com
+```
+
+**Advanced Vulnerability Hunt**
+```bash
+python main_hunter.py https://targetsite.com
 ```
 
 **DNS Enumeration**
