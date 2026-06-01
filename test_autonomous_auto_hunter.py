@@ -31,7 +31,7 @@ class AutoTargetSelectorTests(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.search_programs = AsyncMock(return_value=fake_programs)
 
-        with patch("autonomous_auto_hunter._hackerone_client_cls", return_value=lambda *_: mock_client):
+        with patch("autonomous_auto_hunter._build_hackerone_client", return_value=mock_client):
             targets = asyncio.run(selector.get_best_targets())
 
         self.assertEqual(len(targets), 1)
@@ -58,13 +58,42 @@ class AutonomousAutoHunterTests(unittest.TestCase):
             return_value=[{"type": "SQL Injection", "severity": "HIGH", "bounty_estimate": 1000}]
         )
 
-        with patch("autonomous_auto_hunter._hackerone_client_cls", return_value=lambda *_: mock_client), patch(
-            "autonomous_auto_hunter._finder_cls", return_value=lambda *_: mock_finder
+        with patch("autonomous_auto_hunter._build_hackerone_client", return_value=mock_client), patch(
+            "autonomous_auto_hunter._build_finder", return_value=mock_finder
         ):
             asyncio.run(hunter.hunt_once(target_limit=1, assets_per_target=1))
 
         self.assertEqual(len(hunter.submissions), 1)
-        self.assertEqual(hunter.submissions[0]["status"], "drafted")
+        self.assertEqual(hunter.submissions[0]["status"], "draft")
+
+    def test_hunt_once_submits_when_auto_submit_enabled(self):
+        hunter = AutonomousAutoHunter(auto_submit=True)
+        hunter.h1_username = "user"
+        hunter.h1_token = "token"
+        hunter.target_selector = MagicMock()
+        hunter.target_selector.get_best_targets = AsyncMock(
+            return_value=[{"name": "Prog", "handle": "prog-handle"}]
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_program_scope = AsyncMock(
+            return_value=[{"asset_identifier": "https://example.com"}]
+        )
+        mock_client.submit_report = AsyncMock(return_value="R-123")
+
+        mock_finder = MagicMock()
+        mock_finder.hunt_vulnerabilities = AsyncMock(
+            return_value=[{"type": "SQL Injection", "severity": "HIGH", "bounty_estimate": 1000}]
+        )
+
+        with patch("autonomous_auto_hunter._build_hackerone_client", return_value=mock_client), patch(
+            "autonomous_auto_hunter._build_finder", return_value=mock_finder
+        ):
+            asyncio.run(hunter.hunt_once(target_limit=1, assets_per_target=1))
+
+        self.assertEqual(len(hunter.submissions), 1)
+        self.assertEqual(hunter.submissions[0]["status"], "submitted")
+        self.assertEqual(hunter.submissions[0]["report_id"], "R-123")
 
 
 if __name__ == "__main__":

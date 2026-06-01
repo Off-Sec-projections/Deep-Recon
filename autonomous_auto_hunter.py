@@ -5,29 +5,38 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 try:
     from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency in test environments
+    DOTENV_AVAILABLE = False
+
     def load_dotenv() -> bool:
         return False
 
+logger = logging.getLogger(__name__)
 load_dotenv()
+if not DOTENV_AVAILABLE:
+    logger.debug("python-dotenv is unavailable; environment variables must be provided directly.")
+
+DEFAULT_ACTIVE_HACKERS = 100
 
 
-def _hackerone_client_cls():
+def _build_hackerone_client(username: str, token: str):
     from hackerone_client import HackerOneClient
 
-    return HackerOneClient
+    return HackerOneClient(username, token)
 
 
-def _finder_cls():
+def _build_finder(target_url: str):
     from advanced_vulnerability_finder import AdvancedVulnerabilityFinder
 
-    return AdvancedVulnerabilityFinder
+    return AdvancedVulnerabilityFinder(target_url)
 
 
 class AutoTargetSelector:
@@ -38,7 +47,7 @@ class AutoTargetSelector:
         self.h1_token = h1_token
 
     async def get_best_targets(self, limit: int = 10) -> List[Dict[str, Any]]:
-        client = _hackerone_client_cls()(self.h1_username, self.h1_token)
+        client = _build_hackerone_client(self.h1_username, self.h1_token)
         programs = await client.search_programs()
         if not programs:
             return []
@@ -69,7 +78,7 @@ class AutoTargetSelector:
         avg_bounty = self._as_number(program.get("average_bounty"))
         score += min(avg_bounty / 5000, 5)
 
-        active_hackers = int(self._as_number(program.get("active_hackers_count"), default=100))
+        active_hackers = self._as_int(program.get("active_hackers_count"), default=DEFAULT_ACTIVE_HACKERS)
         if active_hackers < 50:
             score += 3
         elif active_hackers < 100:
@@ -98,6 +107,10 @@ class AutoTargetSelector:
             except ValueError:
                 return default
         return default
+
+    @staticmethod
+    def _as_int(value: Any, default: int = 0) -> int:
+        return int(AutoTargetSelector._as_number(value, default=default))
 
     @staticmethod
     def _response_to_hours(value: Any) -> Optional[float]:
@@ -143,7 +156,7 @@ class AutonomousAutoHunter:
         return {"targets": targets, "submissions": list(self.submissions), "stats": stats}
 
     async def _hunt_all_targets(self, targets: List[Dict[str, Any]], *, assets_per_target: int) -> None:
-        client = _hackerone_client_cls()(self.h1_username, self.h1_token)
+        client = _build_hackerone_client(self.h1_username, self.h1_token)
 
         for target in targets:
             handle = target.get("handle")
@@ -159,7 +172,7 @@ class AutonomousAutoHunter:
                 if not isinstance(asset_target, str) or not asset_target.startswith(("http://", "https://")):
                     continue
 
-                finder = _finder_cls()(asset_target)
+                finder = _build_finder(asset_target)
                 vulns = await finder.hunt_vulnerabilities()
                 for vuln in vulns:
                     bounty = int(vuln.get("bounty_estimate", 0))
@@ -172,7 +185,7 @@ class AutonomousAutoHunter:
                         "severity": vuln.get("severity", "MEDIUM"),
                         "bounty": bounty,
                         "timestamp": datetime.now().isoformat(),
-                        "status": "drafted",
+                        "status": "draft",
                         "evidence": vuln.get("evidence", vuln.get("description", "")),
                     }
                     if self.auto_submit:

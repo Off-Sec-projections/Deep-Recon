@@ -66,7 +66,7 @@ class HackerOneClient:
                     "minimum_bounty": attrs.get("minimum_bounty"),
                     "maximum_bounty": attrs.get("maximum_bounty"),
                     "average_response_time": attrs.get("average_time_to_triage"),
-                    "active_hackers_count": attrs.get("number_of_reports_for_user"),
+                    "active_hackers_count": attrs.get("active_hackers_count"),
                 }
             )
         return programs
