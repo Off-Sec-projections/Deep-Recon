@@ -113,6 +113,12 @@ python vuln_scan.py --target or -t targetsite.com
 python main_hunter.py https://targetsite.com
 ```
 
+**Autonomous Auto-Selection Hunt**
+```bash
+python autonomous_auto_hunter.py --cycles 1 --target-limit 10 --assets-per-target 3
+./run_autonomous.sh --cycles 1 --target-limit 10 --assets-per-target 3
+```
+
 **DNS Enumeration**
 ```bash
 python dns_enum.py --domain targetsite.com
