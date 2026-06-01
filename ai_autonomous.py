@@ -4,6 +4,7 @@ End-to-end automation: Recon -> Vulnerability Discovery -> Exploitation -> Repor
 """
 
 import asyncio
+import argparse
 import aiohttp
 import logging
 from typing import List, Dict, Any
@@ -30,6 +31,7 @@ class AutonomousBugHunter:
         self.results = {
             "target": target,
             "timestamp": datetime.now().isoformat(),
+            "mode": "active" if active_testing else "passive",
             "reconnaissance": {},
             "vulnerabilities": [],
             "exploitations": [],
@@ -53,13 +55,14 @@ class AutonomousBugHunter:
         vulnerabilities = await self._discover_vulnerabilities(recon_data)
         self.results["vulnerabilities"] = vulnerabilities
         
-        # Phase 3: Exploitation
+        # Phase 3: Exploitation (active mode only)
         if self.active_testing:
             logger.info("\n[PHASE 3] EXPLOITATION")
             exploitations = await self._exploit(vulnerabilities)
             self.results["exploitations"] = exploitations
         else:
             logger.info("\n[PHASE 3] EXPLOITATION (SKIPPED - passive mode)")
+            logger.info("Passive mode: exploitation is disabled. Use --active-testing to enable.")
             self.results["exploitations"] = []
         
         # Phase 4: Report Generation
@@ -278,7 +281,6 @@ async def main():
         help="Enable active exploitation testing (use only on explicitly authorized targets)"
     )
     args = parser.parse_args()
-
     api_key = os.getenv('NVIDIA_API_KEY')
     if not api_key:
         logger.warning(

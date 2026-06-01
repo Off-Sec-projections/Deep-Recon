@@ -128,9 +128,10 @@ python whois_batch.py --input domains.txt
 python report_generator.py --input findings.json --output report.html
 ```
 
-**Autonomous AI Orchestration**
+**Autonomous AI Orchestration (passive by default)**
 ```bash
 python ai_autonomous.py --target example.com --cycles 3 --interval-seconds 60 --output hunt_results.json
+python ai_autonomous.py --target example.com --cycles 3 --interval-seconds 60 --output hunt_results.json --active-testing
 ```
 Use `--active-testing` only when you have explicit authorization to run active exploitation checks.
 
