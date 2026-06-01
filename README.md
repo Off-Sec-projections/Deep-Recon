@@ -68,6 +68,8 @@ Deep-Recon is a professional, modular toolkit for web reconnaissance and vulnera
 | `header_analyzer.py`      | HTTP header & security header auditing                            |
 | `http_fingerprint.py`     | Web server & technology fingerprinting                            |
 | `vuln_scan.py`            | Web vulnerability scanning (XSS, SQLi, LFI, SSRF, etc.)           |
+| `advanced_vulnerability_finder.py` | Advanced endpoint/parameter-driven vulnerability hunting |
+| `main_hunter.py`          | CLI orchestrator for advanced vulnerability hunting               |
 | `cve_lookup.py`           | CVE and threat intelligence integration, smart caching            |
 | `dns_enum.py`             | DNS record enumeration with caching                               |
 | `report_generator.py`     | Automated report (HTML/JSON) generation and AI analysis           |
@@ -106,6 +108,11 @@ python cms.py --target or -t targetsite.com
 python vuln_scan.py --target or -t targetsite.com
 ```
 
+**Advanced Vulnerability Hunt**
+```bash
+python main_hunter.py https://targetsite.com
+```
+
 **DNS Enumeration**
 ```bash
 python dns_enum.py --domain targetsite.com
@@ -121,11 +128,12 @@ python whois_batch.py --input domains.txt
 python report_generator.py --input findings.json --output report.html
 ```
 
-**Autonomous Workflow (passive by default)**
+**Autonomous AI Orchestration (passive by default)**
 ```bash
-python ai_autonomous.py --target targetsite.com
-python ai_autonomous.py --target targetsite.com --active-testing
+python ai_autonomous.py --target example.com --cycles 3 --interval-seconds 60 --output hunt_results.json
+python ai_autonomous.py --target example.com --cycles 3 --interval-seconds 60 --output hunt_results.json --active-testing
 ```
+Use `--active-testing` only when you have explicit authorization to run active exploitation checks.
 
 For more options, run any script with `-h` or `--help`.
 
